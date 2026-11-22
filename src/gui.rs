@@ -89,6 +89,7 @@ pub fn run() -> Result<()> {
         viewport: egui::ViewportBuilder::default()
             .with_title("ipscan — TCP Port Scanner")
             .with_icon(icon.clone())
+            .with_app_id("ipscan")
             .with_inner_size([1220.0, 800.0])
             .with_min_inner_size([1000.0, 660.0]),
         ..Default::default()

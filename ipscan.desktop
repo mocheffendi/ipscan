@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=ipscan
+Comment=Fast, cross-platform TCP IP range and port scanner
+Exec=ipscan
+Icon=ipscan
+Type=Application
+Terminal=false
+Categories=Network;Utility;
+StartupWMClass=ipscan
+Keywords=scanner;network;port scanning;

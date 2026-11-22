@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="application">
+  <id>org.ipscan.ipscan</id>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <name>ipscan</name>
+  <summary>Fast, cross-platform TCP IP range and port scanner</summary>
+  <description>
+    <p>
+      ipscan: scanner TCP IP dan port (TCP connect scan, tanpa root) —
+      GUI desktop modern (egui) dan mode CLI.
+    </p>
+    <p>
+      Mendukung target tunggal, CIDR, range, wildcard, dan hostname;
+      port daftar, range, grup (top100, web, ...), atau nama service;
+      reverse DNS, MAC/vendor via OUI, banner grabbing, ekspor JSON/CSV.
+    </p>
+  </description>
+  <developer><name>meffendi</name></developer>
+  <releases>
+    <release version="0.2.0" date="2026-11-21"/>
+  </releases>
+  <content_rating type="oars-1.1"/>
+</component>

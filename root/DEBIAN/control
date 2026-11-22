@@ -1,0 +1,10 @@
+Package: ipscan
+Version: 0.2.0
+Architecture: amd64
+Maintainer: ipscan <ipscan@localhost>
+Section: utils
+Priority: optional
+Depends: libc6, libgcc-s1, libx11-6, libx11-xcb1, libxcursor1, libxi6, libxkbcommon0, libxkbcommon-x11-0, libwayland-client0, libegl1, libgl1, libxrender1
+Description: Fast, cross-platform TCP IP range and port scanner
+ Fast, cross-platform TCP IP range and port scanner — GUI desktop modern
+ (egui) dan mode CLI (clap). Scanner TCP port dengan TCP connect, tanpa root.

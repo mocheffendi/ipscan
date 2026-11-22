@@ -1,0 +1,25 @@
+id: org.ipscan.ipscan
+runtime: org.freedesktop.Platform
+runtime-version: "26.08"
+sdk: org.freedesktop.Sdk
+branch: stable
+command: ipscan
+
+finish-args:
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --device=dri
+  - --filesystem=home
+
+modules:
+  - name: ipscan
+    buildsystem: simple
+    build-commands:
+      - cargo build --release
+      - install -D target/release/ipscan ${FLATPAK_DEST}/bin/ipscan
+      - install -Dm644 ipscan.desktop ${FLATPAK_DEST}/share/applications/ipscan.desktop
+      - install -Dm644 assets/icon.png ${FLATPAK_DEST}/share/icons/hicolor/128x128/apps/ipscan.png
+      - install -Dm644 org.ipscan.ipscan.metainfo.xml ${FLATPAK_DEST}/share/metainfo/org.ipscan.ipscan.metainfo.xml
+    sources:
+      - type: dir
+        path: .
