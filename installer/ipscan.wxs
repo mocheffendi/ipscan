@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- WiX Toolset v5+ script for ipscan (.msi).
+     Version can be overridden with: wix build -d Version=0.3.0 ... -->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <?ifndef Version ?>
+    <?define Version = "0.3.0" ?>
+  <?endif?>
+
+  <Package
+    Name="ipscan"
+    Manufacturer="meffendi"
+    Version="$(Version)"
+    UpgradeCode="4A0950CE-5018-4882-BB1D-9474876755BD"
+    Scope="perMachine">
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of ipscan is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Icon Id="AppIcon" SourceFile="..\assets\icon.ico" />
+
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+    <SetProperty Id="ARPINSTALLLOCATION" Value="[INSTALLFOLDER]" After="CostFinalize" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/meffendi/ipscan" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/meffendi/ipscan/issues" />
+
+    <WixVariable Id="WixUILicenseRtf" Value="LICENSE.rtf" />
+    <ui:WixUI Id="WixUI_InstallDir" />
+
+    <Feature Id="Product" Title="ipscan" Level="1">
+      <ComponentGroupRef Id="ProductComponents" />
+      <ComponentRef Id="ShortcutFolder" />
+    </Feature>
+  </Package>
+
+  <Fragment>
+    <StandardDirectory Id="ProgramFilesFolder">
+      <Directory Id="INSTALLFOLDER" Name="ipscan" />
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="ipscan" />
+    </StandardDirectory>
+    <StandardDirectory Id="DesktopFolder" />
+  </Fragment>
+
+  <Fragment>
+    <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+      <Component Id="MainExecutable" Guid="3492C9B3-9092-4A73-B5A2-8F909911A17B">
+        <File Id="ipscan.exe" Source="..\target\release\ipscan.exe" KeyPath="yes">
+          <Shortcut
+            Id="StartMenuShortcut"
+            Directory="ApplicationProgramsFolder"
+            Name="ipscan"
+            Icon="AppIcon"
+            WorkingDirectory="INSTALLFOLDER" />
+          <Shortcut
+            Id="DesktopShortcut"
+            Directory="DesktopFolder"
+            Name="ipscan"
+            Icon="AppIcon"
+            WorkingDirectory="INSTALLFOLDER" />
+        </File>
+        <File Id="LicenseFile" Source="..\LICENSE" KeyPath="no" />
+      </Component>
+    </ComponentGroup>
+
+    <Component Id="ShortcutFolder" Directory="ApplicationProgramsFolder" Guid="0EE876CB-51A5-433B-BB1A-0974F8DA876B">
+      <RemoveFolder Id="RemoveStartMenuFolder" On="uninstall" />
+      <RegistryValue
+        Root="HKCU"
+        Key="Software\meffendi\ipscan"
+        Name="StartMenuShortcut"
+        Type="integer"
+        Value="1"
+        KeyPath="yes" />
+    </Component>
+  </Fragment>
+</Wix>

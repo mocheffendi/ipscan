@@ -22,6 +22,7 @@ desktop native** dan **CLI**. Tidak memerlukan hak administrator karena memakai
 - **Klik port di tabel hasil** untuk langsung membuka `http://<ip>:<port>/` di browser
   default (`https://` untuk port TLS umum seperti 443/8443)
 - **Ekspor JSON dan CSV**, baik dari GUI maupun CLI
+- **Installer Windows**: paket `setup.exe` (Inno Setup) dan `.msi` (WiX Toolset)
 - Satu binary portabel, tanpa runtime tambahan (tidak butuh Node.js atau browser)
 
 ## Build
@@ -46,6 +47,31 @@ Atau pasang ke `PATH`:
 ```bash
 cargo install --path .
 ```
+
+## Installer Windows
+
+Selain binary portabel, tersedia dua skrip di [`installer/`](installer/) untuk menghasilkan
+paket installer dari binary release yang sama:
+
+- `ipscan-<versi>-setup.exe` — wizard modern dari **Inno Setup 6**, dengan shortcut Start
+  Menu, opsi shortcut Desktop, dan uninstaller.
+- `ipscan-<versi>.msi` — paket **WiX Toolset v6** untuk deployment standar/GPO.
+
+Keduanya meng-copy `ipscan.exe` dan `LICENSE` ke `Program Files\ipscan` dan mendaftarkan
+uninstaller. Versi diambil otomatis dari `Cargo.toml`.
+
+```powershell
+# Prasyarat (sekali):
+winget install --id JRSoftware.InnoSetup -e --accept-package-agreements --accept-source-agreements
+dotnet tool install --global wix --version 6.0.2
+wix extension add -g WixToolset.UI.wixext/6.0.2
+wix extension add -g WixToolset.Util.wixext/6.0.2
+
+# Build keduanya (hasil di installer/out/):
+powershell -ExecutionPolicy Bypass -File .\installer\build.ps1
+```
+
+Detail dan perintah build manual ada di [`installer/README.md`](installer/README.md).
 
 ## Mode GUI
 
@@ -166,7 +192,7 @@ Contoh JSON:
 ```json
 {
   "tool": "ipscan",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "scanned_at_unix": 1780000000,
   "duration_ms": 9310,
   "hosts": [
@@ -212,6 +238,12 @@ Contoh JSON:
 - Pindai hanya jaringan yang Anda miliki atau punya izin untuk diuji.
 
 ## Riwayat versi
+
+### 0.3.0
+
+- Menambahkan skrip installer Windows: `setup.exe` (Inno Setup 6) dan `.msi` (WiX Toolset v6)
+  lewat `installer/build.ps1`; keduanya memasang shortcut dan uninstaller
+- Versi rilis kini satu sumber di `Cargo.toml` dan otomatis dipakai installer serta metadata
 
 ### 0.2.0
 
