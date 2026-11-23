@@ -16,6 +16,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 mod arp;
 mod cli;
 mod gui;
+mod local_ip;
 mod output;
 mod ping;
 mod ports;

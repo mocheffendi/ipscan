@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.ipscan.ipscan" android:versionCode="6" android:versionName="0.5.1">
+
+    <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="36" />
+
+    <!-- TCP connect scans reach remote hosts; reverse DNS goes through the resolver. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Pure NativeActivity: the APK has no dex, only the native library. -->
+    <application
+        android:allowBackup="true"
+        android:hasCode="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="ipscan"
+        android:theme="@android:style/Theme.Material.NoActionBar">
+
+        <activity
+            android:name="android.app.NativeActivity"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode|density"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:resizeableActivity="true">
+
+            <meta-data
+                android:name="android.app.lib_name"
+                android:value="ipscan" />
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

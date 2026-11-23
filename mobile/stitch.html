@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+<title>ipscan — Modern TCP Port Scanner</title>
+<!-- Tailwind CSS CDN with Forms and Container Queries -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              bg: '#070C15',
+              surface: '#0D1527',
+              card: '#121D34',
+              cardBorder: '#1E2D4A',
+              cyan: '#00E5FF',
+              cyanHover: '#33EBFF',
+              cyanDark: '#00838F',
+              accent: '#0A84FF',
+              textMuted: '#74839D'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Menlo', 'Consolas', 'monospace'],
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'SF Pro Text', 'Inter', 'Segoe UI', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+<!-- BEGIN: Style - Custom Animations & Micro-interactions -->
+<style data-purpose="custom-animations">
+    @keyframes pulse-ring {
+      0% { transform: scale(0.65); opacity: 0.8; }
+      50% { transform: scale(1.1); opacity: 0.3; }
+      100% { transform: scale(0.65); opacity: 0.8; }
+    }
+    @keyframes radar-sweep {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .radar-sweep-anim {
+      animation: radar-sweep 3s linear infinite;
+      transform-origin: center center;
+    }
+    .pulse-dot {
+      animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    /* iOS specific safe area utilities and active tap highlight cleanup */
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+    .safe-top {
+      padding-top: env(safe-area-inset-top, 20px);
+    }
+    .safe-bottom {
+      padding-bottom: env(safe-area-inset-bottom, 20px);
+    }
+    /* Custom thin scrollbar */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+<!-- END: Style - Custom Animations & Micro-interactions -->
+</head>
+<body class="bg-[#070C15] text-slate-100 font-sans min-h-screen flex flex-col antialiased selection:bg-brand-cyan/20 selection:text-brand-cyan pb-24">
+<!-- BEGIN: iOS Status & Top App Bar -->
+<header class="sticky top-0 z-40 bg-[#070C15]/90 backdrop-blur-md border-b border-brand-cardBorder/60 safe-top">
+<div class="px-4 py-3 flex items-center justify-between">
+<div class="flex items-center space-x-3">
+<!-- Brand Glowing Radar Icon -->
+<div class="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-400/20 to-blue-600/30 border border-brand-cyan/40 flex items-center justify-center shadow-[0_0_15px_rgba(0,229,255,0.25)] relative overflow-hidden">
+<svg class="w-5 h-5 text-brand-cyan" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity="0.35"></circle>
+<circle cx="12" cy="12" r="5" stroke="currentColor" stroke-opacity="0.65"></circle>
+<circle cx="12" cy="12" fill="currentColor" r="1.5"></circle>
+<line stroke="currentColor" stroke-linecap="round" x1="12" x2="20" y1="12" y2="7"></line>
+</svg>
+</div>
+<div>
+<div class="flex items-center space-x-1.5">
+<h1 class="text-base font-bold tracking-tight text-white leading-none">ipscan</h1>
+<span class="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-brand-card border border-brand-cardBorder text-slate-400">v0.3.0</span>
+</div>
+<p class="text-[11px] text-brand-textMuted tracking-tight mt-0.5">Modern TCP port scanner</p>
+</div>
+</div>
+<!-- State & Status Badge -->
+<div class="flex items-center space-x-2">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.15)]">
+<span class="w-2 h-2 rounded-full bg-emerald-400 pulse-dot"></span>
+          READY
+        </span>
+</div>
+</div>
+<!-- Mobile Navigation Segmented Tabs -->
+<div class="px-4 pb-2.5">
+<nav aria-label="Tabs" class="flex p-1 bg-[#0A111F] rounded-xl border border-brand-cardBorder/60" data-purpose="mobile-section-nav">
+<button class="flex-1 py-1.5 text-xs font-medium rounded-lg text-white bg-brand-card shadow-sm transition-all duration-200" id="tab-btn-setup" onclick="switchTab('setup')">
+          Scan Setup
+        </button>
+<button class="flex-1 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-white transition-all duration-200 flex items-center justify-center space-x-1.5" id="tab-btn-results" onclick="switchTab('results')">
+<span>Results</span>
+<span class="bg-cyan-500/20 text-brand-cyan text-[10px] px-1.5 py-0.2 rounded-full font-mono">0</span>
+</button>
+</nav>
+</div>
+</header>
+<!-- END: iOS Status & Top App Bar -->
+<!-- BEGIN: Main Content Area -->
+<main class="flex-1 px-4 pt-3.5 space-y-4 max-w-md mx-auto w-full">
+<!-- BEGIN: Quick Metrics Section -->
+<section aria-label="Scan Metrics" class="space-y-2.5" data-purpose="metrics-summary">
+<!-- 4-Stat Grid -->
+<div class="grid grid-cols-2 gap-2">
+<!-- Hosts Scanned -->
+<div class="bg-brand-card/90 border border-brand-cardBorder p-3 rounded-xl backdrop-blur-sm">
+<span class="text-[10px] font-mono tracking-wider text-brand-textMuted uppercase block">Hosts Scanned</span>
+<div class="text-xl font-bold font-mono text-white mt-0.5">0 <span class="text-xs text-brand-textMuted font-normal">/ 0</span></div>
+</div>
+<!-- Live Hosts -->
+<div class="bg-brand-card/90 border border-brand-cardBorder p-3 rounded-xl backdrop-blur-sm">
+<span class="text-[10px] font-mono tracking-wider text-brand-textMuted uppercase block">Live Hosts</span>
+<div class="text-xl font-bold font-mono text-emerald-400 mt-0.5">0</div>
+</div>
+<!-- Ping-Only Hosts -->
+<div class="bg-brand-card/90 border border-brand-cardBorder p-3 rounded-xl backdrop-blur-sm">
+<span class="text-[10px] font-mono tracking-wider text-brand-textMuted uppercase block">Ping-Only</span>
+<div class="text-xl font-bold font-mono text-amber-400 mt-0.5">0</div>
+</div>
+<!-- Open Ports -->
+<div class="bg-brand-card/90 border border-brand-cardBorder p-3 rounded-xl backdrop-blur-sm">
+<span class="text-[10px] font-mono tracking-wider text-brand-textMuted uppercase block">Open Ports</span>
+<div class="text-xl font-bold font-mono text-brand-cyan mt-0.5">0</div>
+</div>
+</div>
+<!-- Elapsed & Progress Status Card -->
+<div class="bg-brand-card/90 border border-brand-cardBorder p-3.5 rounded-xl space-y-2">
+<div class="flex items-center justify-between">
+<div>
+<div class="text-xs font-semibold text-white tracking-wide">Ready to scan</div>
+<div class="text-[11px] text-brand-textMuted">Configure targets &amp; ports, then tap Start</div>
+</div>
+<div class="text-right">
+<span class="text-lg font-mono font-bold text-brand-cyan">0%</span>
+<div class="text-[10px] font-mono text-brand-textMuted">0.0s elapsed</div>
+</div>
+</div>
+<!-- Progress Bar Track -->
+<div class="w-full bg-[#0A111F] h-1.5 rounded-full overflow-hidden border border-brand-cardBorder/40">
+<div class="bg-brand-cyan h-full w-0 transition-all duration-300 shadow-[0_0_8px_#00E5FF]"></div>
+</div>
+</div>
+</section>
+<!-- END: Quick Metrics Section -->
+<!-- BEGIN: Setup Tab View -->
+<div class="space-y-4" id="tab-view-setup">
+<!-- Scan Setup Card -->
+<section class="bg-brand-card/90 border border-brand-cardBorder rounded-2xl p-4 shadow-xl space-y-4" data-purpose="scan-configuration">
+<div class="flex items-center justify-between border-b border-brand-cardBorder/80 pb-2.5">
+<h2 class="text-xs font-bold uppercase tracking-wider text-slate-300 font-mono">Scan Setup</h2>
+<span class="text-[11px] text-brand-cyan font-mono flex items-center gap-1">
+<svg class="w-3 h-3" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+            TCP Connect
+          </span>
+</div>
+<!-- Targets Input Block -->
+<div class="space-y-1.5">
+<div class="flex items-center justify-between">
+<label class="text-xs font-semibold text-slate-300" for="targets-input">TARGETS</label>
+<!-- Quick Chips -->
+<div class="flex items-center gap-1.5">
+<span class="text-[10px] text-brand-textMuted font-mono">Quick fill:</span>
+<button class="px-2 py-0.5 text-[10px] font-mono bg-[#091122] hover:bg-brand-cardBorder text-brand-cyan rounded border border-brand-cardBorder active:scale-95 transition-transform" onclick="setTarget('127.0.0.1')" type="button">
+                localhost
+              </button>
+<button class="px-2 py-0.5 text-[10px] font-mono bg-[#091122] hover:bg-brand-cardBorder text-brand-cyan rounded border border-brand-cardBorder active:scale-95 transition-transform" onclick="setTarget('192.168.1.0/24')" type="button">
+                private /24
+              </button>
+</div>
+</div>
+<div class="relative">
+<input class="w-full bg-[#080E1C] border border-brand-cardBorder focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan rounded-xl px-3.5 py-2.5 text-sm font-mono text-cyan-300 tracking-wide placeholder-slate-600 transition" id="targets-input" placeholder="e.g. 192.168.1.0/24, 10.0.0.1" type="text" value="192.168.1.0/24"/>
+</div>
+</div>
+<!-- Ports Input Block -->
+<div class="space-y-1.5">
+<label class="text-xs font-semibold text-slate-300" for="ports-input">PORTS</label>
+<input class="w-full bg-[#080E1C] border border-brand-cardBorder focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan rounded-xl px-3.5 py-2.5 text-sm font-mono text-cyan-300 tracking-wide placeholder-slate-600 transition" id="ports-input" placeholder="top100, 80,443, 1-1024" type="text" value="top100"/>
+<p class="text-[11px] text-brand-textMuted leading-tight pt-0.5">
+            Ranges (1-1024), named groups (<span class="text-slate-300">web</span>, <span class="text-slate-300">db</span>, <span class="text-slate-300">mail</span>), or comma list.
+          </p>
+</div>
+<!-- Performance / Concurrency Settings -->
+<div class="space-y-3 pt-2 border-t border-brand-cardBorder/60">
+<div class="text-[11px] font-mono uppercase tracking-wider text-brand-textMuted">Performance</div>
+<!-- Timeout & Concurrency Controls -->
+<div class="grid grid-cols-2 gap-3">
+<div class="bg-[#091122] p-2.5 rounded-xl border border-brand-cardBorder">
+<span class="text-[11px] text-brand-textMuted block">Timeout</span>
+<div class="flex items-center justify-between mt-1">
+<span class="font-mono text-sm font-semibold text-white" id="timeout-display">1000 ms</span>
+<span class="text-[10px] text-slate-500 font-mono">1.0s</span>
+</div>
+</div>
+<div class="bg-[#091122] p-2.5 rounded-xl border border-brand-cardBorder">
+<span class="text-[11px] text-brand-textMuted block">Concurrency</span>
+<div class="flex items-center justify-between mt-1">
+<span class="font-mono text-sm font-semibold text-brand-cyan" id="concurrency-display">512</span>
+<span class="text-[10px] text-slate-500 font-mono">threads</span>
+</div>
+</div>
+</div>
+<!-- Concurrency Range Slider -->
+<div class="px-1">
+<div class="flex justify-between text-[10px] font-mono text-brand-textMuted mb-1">
+<span>Low (64)</span>
+<span>Fast (512)</span>
+<span>Aggressive (1024)</span>
+</div>
+<input class="w-full h-1.5 bg-[#091122] rounded-lg appearance-none cursor-pointer accent-brand-cyan" id="concurrency-slider" max="1024" min="64" oninput="document.getElementById('concurrency-display').innerText = this.value" step="64" type="range" value="512"/>
+</div>
+</div>
+<!-- Probe Options / Checkboxes -->
+<div class="space-y-2.5 pt-2 border-t border-brand-cardBorder/60 text-xs">
+<label class="flex items-center space-x-3 cursor-pointer select-none">
+<input checked="" class="w-4 h-4 rounded bg-[#080E1C] border-brand-cardBorder text-cyan-500 focus:ring-0 focus:ring-offset-0" type="checkbox"/>
+<span class="text-slate-200">Resolve hostnames</span>
+</label>
+<label class="flex items-center space-x-3 cursor-pointer select-none">
+<input checked="" class="w-4 h-4 rounded bg-[#080E1C] border-brand-cardBorder text-cyan-500 focus:ring-0 focus:ring-offset-0" type="checkbox"/>
+<span class="text-slate-200">Resolve MAC / vendor (ARP)</span>
+</label>
+<label class="flex items-center space-x-3 cursor-pointer select-none">
+<input class="w-4 h-4 rounded bg-[#080E1C] border-brand-cardBorder text-cyan-500 focus:ring-0 focus:ring-offset-0" type="checkbox"/>
+<span class="text-slate-400">Grab service banners</span>
+</label>
+</div>
+<!-- Target Cheatsheet Helper Accordion -->
+<details class="group bg-[#091122]/70 rounded-xl border border-brand-cardBorder/60 text-xs overflow-hidden transition-all">
+<summary class="flex items-center justify-between p-2.5 cursor-pointer text-slate-300 font-medium list-none">
+<span class="flex items-center gap-1.5 text-[11px] font-mono">
+<svg class="w-3.5 h-3.5 text-brand-cyan" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              TARGET CHEATSHEET
+            </span>
+<span class="transition-transform group-open:rotate-180 text-slate-400 text-xs">▼</span>
+</summary>
+<div class="p-3 pt-1 space-y-2 border-t border-brand-cardBorder/40 font-mono text-[11px]">
+<div class="flex justify-between items-center py-0.5">
+<span class="text-brand-cyan font-semibold">192.168.1.0/24</span>
+<span class="text-slate-400">CIDR subnet</span>
+</div>
+<div class="flex justify-between items-center py-0.5">
+<span class="text-brand-cyan font-semibold">10.0.0.1-50</span>
+<span class="text-slate-400">Short range</span>
+</div>
+<div class="flex justify-between items-center py-0.5">
+<span class="text-brand-cyan font-semibold">192.168.1.*</span>
+<span class="text-slate-400">Wildcard</span>
+</div>
+<div class="flex justify-between items-center py-0.5">
+<span class="text-brand-cyan font-semibold">example.com</span>
+<span class="text-slate-400">Hostname domain</span>
+</div>
+</div>
+</details>
+</section>
+</div>
+<!-- END: Setup Tab View -->
+<!-- BEGIN: Results Tab View (Initially Hidden or Toggled) -->
+<div class="space-y-3 hidden" id="tab-view-results">
+<!-- Search & Filters Toolbar -->
+<section class="bg-brand-card/90 border border-brand-cardBorder p-3 rounded-2xl space-y-2.5" data-purpose="results-filter-bar">
+<div class="relative">
+<span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-500">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</span>
+<input class="w-full pl-9 pr-3 py-2 bg-[#091122] border border-brand-cardBorder rounded-xl text-xs font-mono text-white placeholder-slate-500 focus:outline-none focus:border-brand-cyan" placeholder="Filter IP, host, port, service..." type="text"/>
+</div>
+<div class="flex items-center justify-between text-xs pt-1">
+<label class="flex items-center space-x-2 text-slate-400">
+<input class="w-3.5 h-3.5 rounded bg-[#080E1C] border-brand-cardBorder text-cyan-500" type="checkbox"/>
+<span class="text-[11px]">Show ping-only hosts</span>
+</label>
+<div class="flex items-center space-x-1.5">
+<button class="px-2.5 py-1 text-[11px] font-mono bg-[#091122] hover:bg-brand-cardBorder text-slate-300 rounded border border-brand-cardBorder active:scale-95 transition">
+              JSON
+            </button>
+<button class="px-2.5 py-1 text-[11px] font-mono bg-[#091122] hover:bg-brand-cardBorder text-slate-300 rounded border border-brand-cardBorder active:scale-95 transition">
+              CSV
+            </button>
+</div>
+</div>
+</section>
+<!-- Results Display Container -->
+<section class="bg-brand-card/70 border border-brand-cardBorder rounded-2xl min-h-[300px] flex flex-col justify-center items-center p-6 text-center" data-purpose="results-canvas">
+<!-- Radar Scan Illustration -->
+<div class="relative w-28 h-28 mb-4 flex items-center justify-center">
+<!-- Concentric Radar Rings -->
+<div class="absolute inset-0 rounded-full border border-cyan-500/20"></div>
+<div class="absolute inset-3 rounded-full border border-cyan-500/30"></div>
+<div class="absolute inset-7 rounded-full border border-cyan-500/40"></div>
+<div class="absolute inset-11 rounded-full bg-cyan-500/10 border border-cyan-500/60"></div>
+<!-- Animated Radar Sweep Line -->
+<div class="w-full h-full absolute flex items-center justify-center radar-sweep-anim pointer-events-none">
+<div class="w-1/2 h-[2px] bg-gradient-to-r from-transparent to-brand-cyan ml-auto transform -translate-y-1/2"></div>
+<div class="w-2 h-2 rounded-full bg-brand-cyan absolute right-0 shadow-[0_0_8px_#00E5FF]"></div>
+</div>
+</div>
+<h3 class="text-sm font-semibold text-white tracking-wide">No results yet</h3>
+<p class="text-xs text-brand-textMuted mt-1 max-w-[220px]">
+          Enter your target CIDR or host range and press <span class="text-brand-cyan">Start scan</span> to begin.
+        </p>
+<!-- Preview Mock Active Card (Hidden sample for reference) -->
+<div class="w-full text-left mt-5 pt-4 border-t border-brand-cardBorder/50 hidden">
+<div class="flex items-center justify-between text-xs mb-1.5 font-mono">
+<span class="font-bold text-white flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-emerald-400"></span> 192.168.1.1
+            </span>
+<span class="text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded text-[10px]">1.8 ms</span>
+</div>
+<div class="text-[11px] text-slate-400">gateway.local (Unifi UDM-Pro)</div>
+<div class="flex flex-wrap gap-1 mt-2">
+<span class="px-2 py-0.5 bg-cyan-500/15 text-brand-cyan text-[10px] font-mono rounded border border-cyan-500/30">80/tcp http</span>
+<span class="px-2 py-0.5 bg-cyan-500/15 text-brand-cyan text-[10px] font-mono rounded border border-cyan-500/30">443/tcp https</span>
+<span class="px-2 py-0.5 bg-cyan-500/15 text-brand-cyan text-[10px] font-mono rounded border border-cyan-500/30">53/tcp dns</span>
+</div>
+</div>
+</section>
+</div>
+<!-- END: Results Tab View -->
+</main>
+<!-- END: Main Content Area -->
+<!-- BEGIN: Sticky Bottom Action Dock -->
+<aside class="fixed bottom-0 inset-x-0 bg-[#070C15]/95 backdrop-blur-lg border-t border-brand-cardBorder/70 p-3 safe-bottom z-50">
+<div class="max-w-md mx-auto flex items-center gap-3">
+<!-- Main Glowing CTA Button -->
+<button class="flex-1 h-12 bg-gradient-to-r from-[#00D2EF] to-[#00F0FF] hover:from-[#33EBFF] hover:to-[#66F4FF] text-[#071322] font-bold text-sm tracking-wide rounded-xl shadow-[0_0_20px_rgba(0,229,255,0.4)] active:scale-[0.98] transition flex items-center justify-center space-x-2" data-purpose="primary-scan-trigger" id="btn-scan-action" onclick="toggleScanAction()">
+<svg class="w-4 h-4 fill-current" id="scan-icon" viewbox="0 0 24 24">
+<polygon points="5,3 19,12 5,21"></polygon>
+</svg>
+<span id="scan-button-text">Start scan</span>
+</button>
+<!-- Secondary Quick Settings / Stop Button -->
+<button class="h-12 w-12 rounded-xl bg-brand-card border border-brand-cardBorder flex items-center justify-center text-slate-300 hover:text-white active:scale-95 transition" onclick="resetScanDefaults()" title="Reset configuration" type="button">
+<svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</button>
+</div>
+</aside>
+<!-- END: Sticky Bottom Action Dock -->
+<!-- BEGIN: Script - Tab Switching & Interactivity -->
+<script data-purpose="ui-interactions">
+    let isScanning = false;
+
+    // Tab Navigation Switcher
+    function switchTab(tab) {
+      const setupBtn = document.getElementById('tab-btn-setup');
+      const resultsBtn = document.getElementById('tab-btn-results');
+      const setupView = document.getElementById('tab-view-setup');
+      const resultsView = document.getElementById('tab-view-results');
+
+      if (tab === 'setup') {
+        setupView.classList.remove('hidden');
+        resultsView.classList.add('hidden');
+        setupBtn.className = 'flex-1 py-1.5 text-xs font-medium rounded-lg text-white bg-brand-card shadow-sm transition-all duration-200';
+        resultsBtn.className = 'flex-1 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-white transition-all duration-200 flex items-center justify-center space-x-1.5';
+      } else {
+        setupView.classList.add('hidden');
+        resultsView.classList.remove('hidden');
+        resultsBtn.className = 'flex-1 py-1.5 text-xs font-medium rounded-lg text-white bg-brand-card shadow-sm transition-all duration-200 flex items-center justify-center space-x-1.5';
+        setupBtn.className = 'flex-1 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-white transition-all duration-200';
+      }
+    }
+
+    // Quick Fill Target
+    function setTarget(cidr) {
+      const targetInput = document.getElementById('targets-input');
+      targetInput.value = cidr;
+      targetInput.focus();
+    }
+
+    // Toggle Scan Action
+    function toggleScanAction() {
+      const btn = document.getElementById('btn-scan-action');
+      const btnText = document.getElementById('scan-button-text');
+      const icon = document.getElementById('scan-icon');
+
+      isScanning = !isScanning;
+
+      if (isScanning) {
+        btnText.innerText = 'Stop scan';
+        btn.classList.remove('from-[#00D2EF]', 'to-[#00F0FF]');
+        btn.classList.add('from-rose-500', 'to-red-600', 'text-white', 'shadow-[0_0_20px_rgba(244,63,94,0.4)]');
+        icon.innerHTML = '<rect x="6" y="6" width="12" height="12" fill="currentColor" rx="1"/>';
+        // Auto-switch to results view for mobile feedback
+        switchTab('results');
+      } else {
+        btnText.innerText = 'Start scan';
+        btn.classList.add('from-[#00D2EF]', 'to-[#00F0FF]');
+        btn.classList.remove('from-rose-500', 'to-red-600', 'text-white', 'shadow-[0_0_20px_rgba(244,63,94,0.4)]');
+        icon.innerHTML = '<polygon points="5,3 19,12 5,21" fill="currentColor"/>';
+      }
+    }
+
+    // Reset Defaults
+    function resetScanDefaults() {
+      document.getElementById('targets-input').value = '192.168.1.0/24';
+      document.getElementById('ports-input').value = 'top100';
+      const slider = document.getElementById('concurrency-slider');
+      slider.value = 512;
+      document.getElementById('concurrency-display').innerText = '512';
+    }
+  </script>
+<!-- END: Script - Tab Switching & Interactivity -->
+</body></html>

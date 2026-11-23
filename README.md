@@ -12,6 +12,10 @@ desktop native** dan **CLI**. Tidak memerlukan hak administrator karena memakai
 ## Fitur
 
 - **GUI desktop modern**: tema gelap, progres live, kartu statistik, tabel hasil, filter
+- **Deteksi Wi-Fi otomatis**: alamat IP jaringan saat ini terisi otomatis sebagai `/24`
+  (tombol *Wi-Fi /24* untuk mengulang deteksi)
+- **Slider bersama**: klik *Timeout* atau *Concurrency* untuk memilih nilai yang diubah
+  slider yang sama (concurrency hingga 2048)
 - **CLI lengkap** untuk otomasi dan pemakaian dari terminal
 - **Target fleksibel**: IP tunggal, CIDR, range, wildcard, dan hostname
 - **Port fleksibel**: daftar, range, grup (`top100`, `all`, `web`, ...), atau nama service (`ssh`, `https`)
@@ -72,6 +76,38 @@ powershell -ExecutionPolicy Bypass -File .\installer\build.ps1
 ```
 
 Detail dan perintah build manual ada di [`installer/README.md`](installer/README.md).
+
+## Build APK (Android)
+
+Versi Android memakai crate terpisah di [`mobile/`](mobile/) dengan UI portrait dan
+`NativeActivity`. Skrip [`mobile/android-build.sh`](mobile/android-build.sh) menghasilkan
+APK **arm64-v8a** untuk Android 7.0+ (API 24).
+
+Prasyarat (sekali):
+
+```bash
+rustup target add aarch64-linux-android
+export ANDROID_HOME="$HOME/Android/Sdk"   # sesuaikan lokasi SDK kamu
+
+# Diperlukan oleh apksigner; boleh memakai JDK/Android Studio JBR
+export JAVA_HOME="/path/to/jdk"
+export PATH="$JAVA_HOME/bin:$PATH"
+```
+
+Build, pasang, dan jalankan:
+
+```bash
+bash mobile/android-build.sh
+# hasil: mobile/build/out/ipscan.apk
+
+adb install -r mobile/build/out/ipscan.apk
+adb shell am start -n org.ipscan.ipscan/android.app.NativeActivity
+```
+
+Skrip akan otomatis memilih NDK, build-tools dan platform terbaru dari `$ANDROID_HOME`,
+meng-compile `libipscan.so`, lalu `zipalign` dan `apksigner`. Keystore debug disimpan di
+`mobile/ipscan-debug.keystore` agar tanda tangan APK tetap sama saat di-update.
+Detail selengkapnya ada di [`mobile/README.md`](mobile/README.md).
 
 ## Mode GUI
 
@@ -192,7 +228,7 @@ Contoh JSON:
 ```json
 {
   "tool": "ipscan",
-  "version": "0.3.0",
+  "version": "0.5.1",
   "scanned_at_unix": 1780000000,
   "duration_ms": 9310,
   "hosts": [
@@ -238,6 +274,35 @@ Contoh JSON:
 - Pindai hanya jaringan yang Anda miliki atau punya izin untuk diuji.
 
 ## Riwayat versi
+
+### 0.5.1
+
+- Slider concurrency sekarang **linear**: posisi handle sesuai nilai, jadi `512` berada
+  sekitar 25% dari rentang `1–2048` (sebelumnya skala logaritmik membuatnya berada di
+  sekitar 82% / dekat kanan)
+- Timeout tetap memakai skala logaritmik supaya nilai kecil dalam rentang `50–60000 ms`
+  masih mudah diatur
+- Versi desktop dan Android naik ke **0.5.1** (`versionCode="6"` di manifest Android)
+
+### 0.5.0
+
+- Deteksi alamat Wi-Fi saat ini dan isi otomatis `TARGETS` sebagai `/24`; quick fill
+  **Wi-Fi /24** untuk mengulang deteksi (desktop dan Android)
+- Satu slider untuk Timeout dan Concurrency: klik/tap kartu statistik untuk memilih
+  nilai yang diubah. Concurrency sekarang maksimal **2048** juga di Android
+- Bagian **PERFORMANCE** desktop memakai kartu statistik yang sama seperti aplikasi
+  mobile, dan slider direntangkan selebar area pengaturan di kedua aplikasi
+- Versi desktop dan Android naik ke **0.5.0** (`versionCode="5"` di manifest Android)
+- README menambahkan panduan build APK dan riwayat versi yang diperbarui pada setiap rilis
+
+### 0.4.0
+
+- Port Android mandiri: crate `mobile/`, UI portrait berbasis `NativeActivity`,
+  APK `arm64-v8a` untuk API 24+
+- UI mobile: quick fill target, slider concurrency, toggle probe, cheatsheet, filter,
+  ekspor JSON/CSV, dan kartu host yang bisa diketuk
+- Safe area Android, scroll dengan drag jari, dan target tombol berukuran jari
+- Skrip `mobile/android-build.sh` untuk build, `zipalign`, dan tanda tangan APK
 
 ### 0.3.0
 

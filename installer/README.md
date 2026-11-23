@@ -34,7 +34,7 @@ Hasil ada di `installer/out/`.
 
 ```powershell
 # Pastikan cargo build --release sudah dijalankan.
-$version = '0.3.0'  # samakan dengan Cargo.toml
+$version = '0.5.1'  # samakan dengan Cargo.toml
 
 & "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" installer\ipscan.iss /dAppVersion=$version
 

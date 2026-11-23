@@ -1,0 +1,29 @@
+[package]
+name = "ipscan-mobile"
+version = "0.5.1"
+edition = "2021"
+rust-version = "1.81"
+description = "Portrait-first Android port of ipscan"
+license = "MIT"
+
+[lib]
+# The APK's android.app.lib_name is "ipscan", so the cdylib must be
+# libipscan.so (crate name "ipscan", not the package name "ipscan-mobile").
+name = "ipscan"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+anyhow = "1"
+dns-lookup = "2"
+eframe = { version = "0.31.1", features = ["android-native-activity"] }
+futures = "0.3"
+indicatif = "0.17"
+macaddr-ouidb = { version = "0.3.1", default-features = false, features = ["std"] }
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "sync", "time", "io-util"] }
+winit = { version = "0.30", features = ["android-native-activity"] }
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true

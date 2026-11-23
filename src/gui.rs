@@ -11,6 +11,7 @@ use egui::{Align, Color32, CornerRadius, FontId, Layout, Margin, RichText, Strok
 use egui_extras::{Column, TableBuilder};
 
 use crate::arp;
+use crate::local_ip;
 use crate::scanner::{self, HostResult, PortResult, ScanConfig, ScanEvent};
 use crate::{output, ports, target};
 
@@ -75,6 +76,13 @@ struct UiAction {
     stop: bool,
 }
 
+/// Which setting the single slider in the performance card controls.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SliderField {
+    Timeout,
+    Concurrency,
+}
+
 struct ResultRow<'a> {
     host: &'a HostResult,
     port: Option<&'a PortResult>,
@@ -108,6 +116,7 @@ struct IpScanApp {
     ports: String,
     timeout_ms: u64,
     concurrency: usize,
+    slider_field: SliderField,
     resolve: bool,
     banners: bool,
     resolve_mac: bool,
@@ -148,11 +157,18 @@ impl IpScanApp {
             egui::TextureOptions::LINEAR,
         );
 
+        let wifi = local_ip::wifi_network();
+        let status = match &wifi {
+            Some(network) => format!("Wi-Fi network detected: {network}. Ready to scan."),
+            None => "No Wi-Fi address detected — choose a target below.".to_string(),
+        };
+
         Self {
-            targets: String::new(),
+            targets: wifi.unwrap_or_default(),
             ports: "top100".to_string(),
             timeout_ms: 1000,
             concurrency: 512,
+            slider_field: SliderField::Concurrency,
             resolve: true,
             banners: false,
             resolve_mac: true,
@@ -174,9 +190,56 @@ impl IpScanApp {
             cancel: None,
 
             error: None,
-            status: "Ready. Configure a target and start scanning.".to_string(),
+            status,
             icon_texture,
         }
+    }
+
+    /// Re-detect the current Wi-Fi network and fill it into TARGETS.
+    fn fill_wifi_network(&mut self) {
+        match local_ip::wifi_network() {
+            Some(network) => {
+                self.targets = network.clone();
+                self.error = None;
+                self.status = format!("Wi-Fi network detected: {network}. Ready to scan.");
+            }
+            None => {
+                self.status = "No Wi-Fi address detected — choose a target manually.".to_string();
+            }
+        }
+    }
+
+    /// One slider for both settings: click Timeout or Concurrency to pick which
+    /// value it edits. Kept in the same place in the performance card.
+    fn value_slider(&mut self) -> egui::Slider<'_> {
+        let field = self.slider_field;
+        // Concurrency stays linear so 512 sits at ~25% of the 1..2048 track.
+        // The timeout range is much wider, so it keeps a logarithmic scale.
+        let (range, suffix, logarithmic) = match field {
+            SliderField::Timeout => (50.0..=60_000.0, " ms", true),
+            SliderField::Concurrency => (1.0..=2_048.0, "", false),
+        };
+
+        egui::Slider::from_get_set(range, move |value| {
+            if let Some(value) = value {
+                let value = value.round() as u64;
+                match field {
+                    SliderField::Timeout => {
+                        self.timeout_ms = value.clamp(50, 60_000);
+                    }
+                    SliderField::Concurrency => {
+                        self.concurrency = (value as usize).clamp(1, 2_048);
+                    }
+                }
+            }
+            match field {
+                SliderField::Timeout => self.timeout_ms as f64,
+                SliderField::Concurrency => self.concurrency as f64,
+            }
+        })
+        .integer()
+        .logarithmic(logarithmic)
+        .suffix(suffix)
     }
 
     fn is_scanning(&self) -> bool {
@@ -651,6 +714,13 @@ impl IpScanApp {
                 ui.add_space(5.0);
                 ui.horizontal_wrapped(|ui| {
                     ui.label(RichText::new("Quick fill:").size(10.5).color(MUTED));
+                    if ui
+                        .link(RichText::new("Wi-Fi /24").size(11.0))
+                        .on_hover_text("Detect the current Wi-Fi address and fill its /24 network")
+                        .clicked()
+                    {
+                        self.fill_wifi_network();
+                    }
                     if ui.link(RichText::new("localhost").size(11.0)).clicked() {
                         self.targets = "127.0.0.1".to_string();
                     }
@@ -679,28 +749,40 @@ impl IpScanApp {
 
                 ui.add_space(14.0);
                 field_label(ui, "PERFORMANCE");
-                ui.add_space(4.0);
-                egui::Grid::new("scan-settings")
-                    .num_columns(2)
-                    .spacing([12.0, 8.0])
-                    .show(ui, |ui| {
-                        ui.label(RichText::new("Timeout").size(12.0).color(MUTED));
-                        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                            ui.add(
-                                egui::DragValue::new(&mut self.timeout_ms)
-                                    .range(50..=60_000)
-                                    .speed(25.0)
-                                    .suffix(" ms"),
-                            );
-                        });
-                        ui.end_row();
-
-                        ui.label(RichText::new("Concurrency").size(12.0).color(MUTED));
-                        ui.add(
-                            egui::Slider::new(&mut self.concurrency, 1..=2048).logarithmic(true),
-                        );
-                        ui.end_row();
-                    });
+                ui.add_space(6.0);
+                // Same tappable stat cards as the mobile app.
+                ui.columns(2, |columns| {
+                    if mini_stat(
+                        &mut columns[0],
+                        "Timeout",
+                        &format!("{} ms", self.timeout_ms),
+                        TEXT,
+                        self.slider_field == SliderField::Timeout,
+                    ) {
+                        self.slider_field = SliderField::Timeout;
+                    }
+                    if mini_stat(
+                        &mut columns[1],
+                        "Concurrency",
+                        &self.concurrency.to_string(),
+                        ACCENT,
+                        self.slider_field == SliderField::Concurrency,
+                    ) {
+                        self.slider_field = SliderField::Concurrency;
+                    }
+                });
+                ui.add_space(6.0);
+                ui.label(
+                    RichText::new(match self.slider_field {
+                        SliderField::Timeout => "Slider: connect timeout (50 ms - 60 s)",
+                        SliderField::Concurrency => "Slider: concurrency (1 - 2048)",
+                    })
+                    .size(10.0)
+                    .color(MUTED),
+                );
+                ui.add_space(2.0);
+                // One full-width slider for both settings; values live in the cards.
+                full_width_slider(ui, self.value_slider().show_value(false));
 
                 ui.add_space(10.0);
                 ui.checkbox(&mut self.resolve, "Resolve hostnames")
@@ -1212,6 +1294,56 @@ fn section_label(ui: &mut Ui, text: &str) {
 
 fn field_label(ui: &mut Ui, text: &str) {
     ui.label(RichText::new(text).size(10.0).strong().color(MUTED));
+}
+
+/// Tappable stat card, identical in spirit to the mobile PERFORMANCE cards.
+/// Clicking one selects which value the shared slider edits.
+fn mini_stat(ui: &mut Ui, label: &str, value: &str, color: Color32, selected: bool) -> bool {
+    egui::Frame::NONE
+        .fill(if selected { ACCENT_SOFT } else { SURFACE_ALT })
+        .corner_radius(CornerRadius::same(10))
+        .stroke(Stroke::new(
+            1.0_f32,
+            if selected { ACCENT_DARK } else { BORDER },
+        ))
+        .inner_margin(Margin::symmetric(10, 7))
+        .show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            let mut clicked = ui
+                .add(
+                    egui::Button::new(RichText::new(label).size(10.5).color(if selected {
+                        ACCENT
+                    } else {
+                        MUTED
+                    }))
+                    .frame(false),
+                )
+                .clicked();
+            clicked |= ui
+                .add(
+                    egui::Button::new(
+                        RichText::new(value)
+                            .size(14.0)
+                            .strong()
+                            .monospace()
+                            .color(color),
+                    )
+                    .frame(false),
+                )
+                .clicked();
+            clicked
+        })
+        .inner
+}
+
+/// egui sizes sliders from `spacing.slider_width`; stretch it to the card width.
+fn full_width_slider(ui: &mut Ui, slider: egui::Slider<'_>) -> egui::Response {
+    let width = ui.available_width().max(60.0);
+    let previous = ui.spacing().slider_width;
+    ui.spacing_mut().slider_width = width;
+    let response = ui.add(slider);
+    ui.spacing_mut().slider_width = previous;
+    response
 }
 
 fn stat_card(ui: &mut Ui, label: &str, value: &str, color: Color32, active: f32) {

@@ -1,2 +1,5 @@
 /target
 /installer/out
+/mobile/build/
+/mobile/target/
+/mobile/ipscan-debug.keystore
