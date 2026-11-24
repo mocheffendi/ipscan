@@ -77,6 +77,20 @@ powershell -ExecutionPolicy Bypass -File .\installer\build.ps1
 
 Detail dan perintah build manual ada di [`installer/README.md`](installer/README.md).
 
+## Paket Debian (.deb)
+
+Untuk Debian/Ubuntu, jalankan:
+
+```bash
+bash installer/build-deb.sh
+# hasil: installer/out/ipscan_<versi>_<arsitektur>.deb
+```
+
+Skrip ini membangun binary release, lalu membuat paket berisi binary, desktop entry,
+ikon, metadata AppStream, dan `LICENSE`. Versi dibaca dari `Cargo.toml` dan arsitektur
+dari `dpkg --print-architecture` (misalnya `amd64` atau `arm64`). Detail ada di
+[`installer/README.md`](installer/README.md).
+
 ## Build APK (Android)
 
 Versi Android memakai crate terpisah di [`mobile/`](mobile/) dengan UI portrait dan
@@ -283,6 +297,8 @@ Contoh JSON:
 - Timeout tetap memakai skala logaritmik supaya nilai kecil dalam rentang `50–60000 ms`
   masih mudah diatur
 - Versi desktop dan Android naik ke **0.5.1** (`versionCode="6"` di manifest Android)
+- Menambahkan `installer/build-deb.sh` untuk menghasilkan paket `.deb` Debian/Ubuntu
+  (versi dari `Cargo.toml`, arsitektur dari `dpkg --print-architecture`)
 
 ### 0.5.0
 

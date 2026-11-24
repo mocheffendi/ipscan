@@ -1,5 +1,5 @@
 Package: ipscan
-Version: 0.3.0
+Version: 0.5.1
 Architecture: amd64
 Maintainer: ipscan <ipscan@localhost>
 Section: utils
